@@ -1,11 +1,52 @@
+import { useMemo } from "react";
 import { useWebSocket } from "./hooks/useWebSocket";
 import { usePortfolio } from "./hooks/usePortfolio";
 
 const TICKERS = ["AAPL", "GOOGL", "MSFT", "NVDA", "JPM", "TSLA"];
 
 export default function App() {
-  const { prices, connected } = useWebSocket(TICKERS);
-  const { positions, loading, error, summary } = usePortfolio(prices);
+  const { positions, loading, error, summary } = usePortfolio();
+
+  // Build initial prices from fetched positions
+  const initialPrices = useMemo(() => {
+    return positions.reduce(
+      (acc, p) => {
+        acc[p.ticker] = p.currentPrice;
+        return acc;
+      },
+      {} as { [ticker: string]: number },
+    );
+  }, [positions]);
+
+  const { prices, connected } = useWebSocket(TICKERS, initialPrices);
+
+  // Merge live prices into positions for display
+  const livePositions = useMemo(() => {
+    return positions.map((p) => {
+      const livePrice = prices[p.ticker] ?? p.currentPrice;
+      const totalValue = livePrice * p.shares;
+      const unrealizedGain = totalValue - p.totalCost;
+      return {
+        ...p,
+        currentPrice: livePrice,
+        totalValue,
+        unrealizedGain,
+        unrealizedGainPct: (unrealizedGain / p.totalCost) * 100,
+      };
+    });
+  }, [positions, prices]);
+
+  const liveSummary = useMemo(() => {
+    const totalValue = livePositions.reduce((sum, p) => sum + p.totalValue, 0);
+    const totalCost = livePositions.reduce((sum, p) => sum + p.totalCost, 0);
+    const totalGain = totalValue - totalCost;
+    return {
+      totalValue,
+      totalCost,
+      totalGain,
+      totalGainPct: totalCost > 0 ? (totalGain / totalCost) * 100 : 0,
+    };
+  }, [livePositions]);
 
   if (loading)
     return (
@@ -53,7 +94,7 @@ export default function App() {
           </p>
           <p className="text-2xl font-semibold mt-1">
             $
-            {summary.totalValue.toLocaleString("en-US", {
+            {liveSummary.totalValue.toLocaleString("en-US", {
               minimumFractionDigits: 2,
             })}
           </p>
@@ -63,23 +104,23 @@ export default function App() {
             Total Return
           </p>
           <p
-            className={`text-2xl font-semibold mt-1 ${summary.totalGain >= 0 ? "text-emerald-400" : "text-red-400"}`}
+            className={`text-2xl font-semibold mt-1 ${liveSummary.totalGain >= 0 ? "text-emerald-400" : "text-red-400"}`}
           >
-            {summary.totalGain >= 0 ? "+" : ""}$
-            {summary.totalGain.toLocaleString("en-US", {
+            {liveSummary.totalGain >= 0 ? "+" : ""}$
+            {liveSummary.totalGain.toLocaleString("en-US", {
               minimumFractionDigits: 2,
             })}
             <span className="text-sm ml-2">
-              ({summary.totalGainPct.toFixed(2)}%)
+              ({liveSummary.totalGainPct.toFixed(2)}%)
             </span>
           </p>
         </div>
       </div>
 
-      {/* Main content — just positions for now */}
+      {/* Positions */}
       <main className="px-8 py-6">
         <div className="grid grid-cols-1 gap-3">
-          {positions.map((position) => (
+          {livePositions.map((position) => (
             <div
               key={position.ticker}
               className="border border-neutral-800 rounded-lg p-4 flex items-center justify-between"

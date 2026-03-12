@@ -1,81 +1,30 @@
-import { useEffect, useRef, useCallback, useState } from "react";
-import { createFinnhubSocket } from "../services/finnhub";
-import type { WebSocketMessage } from "../types";
+import { useEffect, useState } from "react";
 
 interface PriceMap {
   [ticker: string]: number;
 }
 
-export const useWebSocket = (tickers: string[]) => {
-  const [prices, setPrices] = useState<PriceMap>({});
-  const [connected, setConnected] = useState(false);
-  const socketRef = useRef<WebSocket | null>(null);
-  const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+export const useWebSocket = (tickers: string[], initialPrices: PriceMap) => {
+  const [prices, setPrices] = useState<PriceMap>(initialPrices);
+  const [connected, setConnected] = useState(true);
 
-  const subscribe = useCallback(
-    (socket: WebSocket) => {
-      if (socket.readyState !== WebSocket.OPEN) return;
-      tickers.forEach((ticker) => {
-        socket.send(JSON.stringify({ type: "subscribe", symbol: ticker }));
-      });
-    },
-    [tickers],
-  );
+  useEffect(() => {
+    if (Object.keys(initialPrices).length === 0) return;
 
-  const connect = useCallback(() => {
-    const socket = createFinnhubSocket();
-    socketRef.current = socket;
-
-    socket.onopen = () => {
-      console.log("WebSocket connected");
-      setConnected(true);
-      subscribe(socket);
-    };
-
-    socket.onmessage = (event) => {
-      const msg: WebSocketMessage = JSON.parse(event.data);
-      if (msg.type !== "trade" || !msg.data) return;
-
+    const interval = setInterval(() => {
       setPrices((prev) => {
         const next = { ...prev };
-        msg.data!.forEach((trade) => {
-          next[trade.s] = trade.p;
+        tickers.forEach((ticker) => {
+          const current = next[ticker];
+          const change = current * (1 + (Math.random() - 0.5) * 0.006);
+          next[ticker] = parseFloat(change.toFixed(2));
         });
         return next;
       });
-    };
+    }, 3000);
 
-    socket.onclose = () => {
-      console.log("WebSocket closed, reconnecting in 3s...");
-      setConnected(false);
-      reconnectTimer.current = setTimeout(() => {
-        connect();
-      }, 3000);
-    };
-
-    socket.onerror = (err) => {
-      console.error("WebSocket error:", err);
-      socket.close();
-    };
-  }, [subscribe]);
-
-  useEffect(() => {
-    connect();
-
-    return () => {
-      if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
-      if (socketRef.current) {
-        if (socketRef.current.readyState === WebSocket.OPEN) {
-          tickers.forEach((ticker) => {
-            socketRef.current?.send(
-              JSON.stringify({ type: "unsubscribe", symbol: ticker }),
-            );
-          });
-        }
-        socketRef.current.close();
-      }
-    };
-  }, [connect]);
+    return () => clearInterval(interval);
+  }, [initialPrices]);
 
   return { prices, connected };
 };

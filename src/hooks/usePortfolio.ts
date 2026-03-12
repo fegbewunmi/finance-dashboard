@@ -12,7 +12,7 @@ const HOLDINGS: Holding[] = [
   { ticker: "TSLA", shares: 6, avgCost: 200.0 },
 ];
 
-export const usePortfolio = (livePrices: { [ticker: string]: number }) => {
+export const usePortfolio = () => {
   const [positions, setPositions] = useState<Position[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -56,29 +56,6 @@ export const usePortfolio = (livePrices: { [ticker: string]: number }) => {
 
     loadMarketData();
   }, []);
-
-  // Merge live prices into positions whenever WebSocket pushes an update
-  useEffect(() => {
-    if (Object.keys(livePrices).length === 0) return;
-
-    setPositions((prev) =>
-      prev.map((position) => {
-        const livePrice = livePrices[position.ticker];
-        if (!livePrice) return position;
-
-        const totalValue = livePrice * position.shares;
-        const unrealizedGain = totalValue - position.totalCost;
-
-        return {
-          ...position,
-          currentPrice: livePrice,
-          totalValue,
-          unrealizedGain,
-          unrealizedGainPct: (unrealizedGain / position.totalCost) * 100,
-        };
-      }),
-    );
-  }, [livePrices]);
 
   const totalValue = positions.reduce((sum, p) => sum + p.totalValue, 0);
   const totalCost = positions.reduce((sum, p) => sum + p.totalCost, 0);
