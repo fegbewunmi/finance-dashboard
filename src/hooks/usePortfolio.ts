@@ -27,22 +27,34 @@ export const usePortfolio = () => {
               fetchQuote(holding.ticker),
               fetchCandles(holding.ticker),
             ]);
-
-            const totalValue = quote.currentPrice * holding.shares;
-            const totalCost = holding.avgCost * holding.shares;
-            const unrealizedGain = totalValue - totalCost;
-
             return {
               ...holding,
-              ...quote,
-              name: "", // we'll fill this in a moment
-              sector: "",
+              ...quote, // now includes name and sector
               priceHistory,
-              totalValue,
-              totalCost,
-              unrealizedGain,
-              unrealizedGainPct: (unrealizedGain / totalCost) * 100,
+              totalValue: quote.currentPrice * holding.shares,
+              totalCost: holding.avgCost * holding.shares,
+              unrealizedGain:
+                (quote.currentPrice - holding.avgCost) * holding.shares,
+              unrealizedGainPct:
+                ((quote.currentPrice - holding.avgCost) / holding.avgCost) *
+                100,
             } as Position;
+
+            // const totalValue = quote.currentPrice * holding.shares;
+            // const totalCost = holding.avgCost * holding.shares;
+            // const unrealizedGain = totalValue - totalCost;
+
+            // return {
+            //   ...holding,
+            //   ...quote,
+            //   name: "", // we'll fill this in a moment
+            //   sector: "",
+            //   priceHistory,
+            //   totalValue,
+            //   totalCost,
+            //   unrealizedGain,
+            //   unrealizedGainPct: (unrealizedGain / totalCost) * 100,
+            // } as Position;
           }),
         );
 
