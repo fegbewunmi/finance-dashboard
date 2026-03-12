@@ -1,5 +1,4 @@
 const API_KEY = import.meta.env.VITE_FINNHUB_API_KEY;
-const WS_URL = `wss://ws.finnhub.io?token=${API_KEY}`;
 const REST_URL = "https://finnhub.io/api/v1";
 
 export const fetchQuote = async (ticker: string) => {
@@ -7,31 +6,32 @@ export const fetchQuote = async (ticker: string) => {
     `${REST_URL}/quote?symbol=${ticker}&token=${API_KEY}`,
   );
   const data = await res.json();
-
   return {
-    currentPrice: data.c, // current price
-    previousClose: data.pc, // previous close
-    change: data.d, // absolute change
-    changePct: data.dp, // % change
+    currentPrice: data.c,
+    previousClose: data.pc,
+    change: data.d,
+    changePct: data.dp,
   };
 };
 
+// Candles are paywalled on free tier — generate realistic mock history
+// seeded from the real current price
 export const fetchCandles = async (ticker: string) => {
-  const to = Math.floor(Date.now() / 1000);
-  const from = to - 30 * 24 * 60 * 60; // 30 days ago
+  const quote = await fetchQuote(ticker);
+  const basePrice = quote.currentPrice;
 
-  const res = await fetch(
-    `${REST_URL}/stock/candle?symbol=${ticker}&resolution=D&from=${from}&to=${to}&token=${API_KEY}`,
-  );
-  const data = await res.json();
+  const days = 30;
+  const now = Date.now();
+  let price = basePrice * (1 - Math.random() * 0.1); // start ~10% below current
 
-  if (data.s !== "ok") return [];
-
-  // Finnhub returns parallel arrays — zip them into PricePoint objects
-  return data.t.map((timestamp: number, i: number) => ({
-    timestamp: timestamp * 1000, // convert to ms
-    price: data.c[i], // closing price
-  }));
+  return Array.from({ length: days }, (_, i) => {
+    price = price * (1 + (Math.random() - 0.48) * 0.02);
+    return {
+      timestamp: now - (days - i) * 24 * 60 * 60 * 1000,
+      price: parseFloat(price.toFixed(2)),
+    };
+  }).concat([{ timestamp: now, price: basePrice }]); // end at real price
 };
 
-export const createFinnhubSocket = () => new WebSocket(WS_URL);
+export const createFinnhubSocket = () =>
+  new WebSocket(`wss://ws.finnhub.io?token=${API_KEY}`);

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Position, Holding } from "../types";
+import type { Position, Holding } from "../types";
 import { fetchQuote, fetchCandles } from "../services/finnhub";
 
 // Hardcoded for now — later this could come from localStorage or a backend

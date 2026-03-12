@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import { createFinnhubSocket } from "../services/finnhub";
-import { WebSocketMessage } from "../types";
+import type { WebSocketMessage } from "../types";
 
 interface PriceMap {
   [ticker: string]: number;
@@ -14,6 +14,7 @@ export const useWebSocket = (tickers: string[]) => {
 
   const subscribe = useCallback(
     (socket: WebSocket) => {
+      if (socket.readyState !== WebSocket.OPEN) return;
       tickers.forEach((ticker) => {
         socket.send(JSON.stringify({ type: "subscribe", symbol: ticker }));
       });
@@ -26,6 +27,7 @@ export const useWebSocket = (tickers: string[]) => {
     socketRef.current = socket;
 
     socket.onopen = () => {
+      console.log("WebSocket connected");
       setConnected(true);
       subscribe(socket);
     };
@@ -44,14 +46,15 @@ export const useWebSocket = (tickers: string[]) => {
     };
 
     socket.onclose = () => {
+      console.log("WebSocket closed, reconnecting in 3s...");
       setConnected(false);
-      // Reconnect after 3 seconds
       reconnectTimer.current = setTimeout(() => {
         connect();
       }, 3000);
     };
 
-    socket.onerror = () => {
+    socket.onerror = (err) => {
+      console.error("WebSocket error:", err);
       socket.close();
     };
   }, [subscribe]);
@@ -60,14 +63,15 @@ export const useWebSocket = (tickers: string[]) => {
     connect();
 
     return () => {
-      // Cleanup on unmount
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
       if (socketRef.current) {
-        tickers.forEach((ticker) => {
-          socketRef.current?.send(
-            JSON.stringify({ type: "unsubscribe", symbol: ticker }),
-          );
-        });
+        if (socketRef.current.readyState === WebSocket.OPEN) {
+          tickers.forEach((ticker) => {
+            socketRef.current?.send(
+              JSON.stringify({ type: "unsubscribe", symbol: ticker }),
+            );
+          });
+        }
         socketRef.current.close();
       }
     };

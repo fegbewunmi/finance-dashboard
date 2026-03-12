@@ -35,7 +35,7 @@ export interface ChatMessage {
 export interface WebSocketMessage {
   type: "trade" | "ping";
   data?: {
-    s: string; // symbol (Finnhub's format)
+    s: string; // symbol
     p: number; // price
     t: number; // timestamp
     v: number; // volume
