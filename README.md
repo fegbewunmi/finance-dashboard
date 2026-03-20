@@ -36,15 +36,8 @@ src/
   App.tsx                # Root layout and routing
 ```
 
-## Deploying to Vercel
-
-1. Push to GitHub
-2. Import repo in Vercel
-3. Add `VITE_ANTHROPIC_API_KEY` in Vercel → Settings → Environment Variables
-4. Deploy
 
 ## Key Technical Decisions
-
 - **Mock data over live API** — Finnhub free tier has aggressive rate limits; mock data keeps the demo stable and removes API key friction for reviewers.
 - **usePortfolio hook** — separates data fetching from UI; refreshes every 10s to simulate live price ticking.
 - **Positions = Stock + Holding** — stock data (price, history) and holding data (shares, avg cost) are separate concerns that get merged into a `Position` at the hook level.
